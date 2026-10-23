@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>選擇帳戶</title>
+  <!-- 引入 Tailwind CSS 與 LINE 官方 LIFF SDK -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 font-sans select-none pb-12">
+
+  <!-- 頂部搜尋列 -->
+  <div class="sticky top-0 bg-slate-50 pt-1 pb-3 z-10">
+    <div class="relative">
+      <input type="text" id="searchInput" placeholder="🔍 搜尋帳戶名稱（例：富邦、現金）..." 
+             class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-sm">
+      <button id="clearBtn" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-sm">✕</button>
+    </div>
+
+    <!-- 分類快速過濾標籤 -->
+    <div class="flex gap-2 overflow-x-auto no-scrollbar mt-2.5 py-1" id="categoryChips">
+      <button class="chip active px-3 py-1 rounded-full text-xs font-medium bg-emerald-600 text-white whitespace-nowrap" data-cat="ALL">全部</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="信用卡">信用卡</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="台幣銀行">台幣銀行</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="數位帳戶">數位帳戶</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="票證儲值">票證/儲值</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="外幣">外幣</button>
+      <button class="chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap" data-cat="其他負債">負債/其他</button>
+    </div>
+  </div>
+
+  <!-- 帳戶清單列表 -->
+  <div id="accountList" class="space-y-2 mt-1"></div>
+
+  <script>
+    // 請替換為你的真實 LIFF ID
+    const MY_LIFF_ID = "2012182113-Is0rZCfR";
+
+    // 內建完整 46 個帳戶清單（秒開零延遲）
+    const allAccounts = [
+      { name: "富邦J卡", category: "信用卡" },
+      { name: "富邦Cos卡", category: "信用卡" },
+      { name: "富邦保險卡", category: "信用卡" },
+      { name: "中信LP卡", category: "信用卡" },
+      { name: "中信中油卡", category: "信用卡" },
+      { name: "玉山熊本熊卡", category: "信用卡" },
+      { name: "玉山Pi卡", category: "信用卡" },
+      { name: "玉山裕隆卡", category: "信用卡" },
+      { name: "永豐大戶卡", category: "信用卡" },
+      { name: "永豐Sport卡", category: "信用卡" },
+      { name: "遠東樂家卡", category: "信用卡" },
+      { name: "樂天玫瑰卡", category: "信用卡" },
+      { name: "樂天熊貓卡", category: "信用卡" },
+      { name: "星展饗樂卡", category: "信用卡" },
+      { name: "永豐銀行", category: "台幣銀行" },
+      { name: "中信銀行", category: "台幣銀行" },
+      { name: "元大銀行", category: "台幣銀行" },
+      { name: "富邦銀行", category: "台幣銀行" },
+      { name: "玉山銀行", category: "台幣銀行" },
+      { name: "兆豐銀行", category: "台幣銀行" },
+      { name: "凱基銀行", category: "台幣銀行" },
+      { name: "華南銀行", category: "台幣銀行" },
+      { name: "台灣銀行", category: "台幣銀行" },
+      { name: "台企銀行", category: "台幣銀行" },
+      { name: "遠東銀行", category: "台幣銀行" },
+      { name: "連線銀行", category: "台幣銀行" },
+      { name: "聯邦銀行", category: "台幣銀行" },
+      { name: "台新銀行", category: "台幣銀行" },
+      { name: "華南SnY", category: "數位帳戶" },
+      { name: "連線口袋", category: "數位帳戶" },
+      { name: "台新子帳戶", category: "數位帳戶" },
+      { name: "將來銀行", category: "數位帳戶" },
+      { name: "將來投資", category: "數位帳戶" },
+      { name: "將來創業", category: "數位帳戶" },
+      { name: "將來出國", category: "數位帳戶" },
+      { name: "將來存款", category: "數位帳戶" },
+      { name: "玉山日幣", category: "外幣" },
+      { name: "玉山美金", category: "外幣" },
+      { name: "兆豐美金", category: "外幣" },
+      { name: "PayPal台", category: "外幣" },
+      { name: "PayPal美", category: "外幣" },
+      { name: "台新日幣", category: "外幣" },
+      { name: "台新美金", category: "外幣" },
+      { name: "現金", category: "票證儲值" },
+      { name: "LPM", category: "票證儲值" },
+      { name: "隨行卡", category: "票證儲值" },
+      { name: "摩斯卡", category: "票證儲值" },
+      { name: "點點卡", category: "票證儲值" },
+      { name: "私房錢", category: "票證儲值" },
+      { name: "捷利卡", category: "票證儲值" },
+      { name: "悠遊卡G", category: "票證儲值" },
+      { name: "悠遊卡S", category: "票證儲值" },
+      { name: "Etag", category: "票證儲值" },
+      { name: "貝洱墊款", category: "其他負債" },
+      { name: "車貸", category: "其他負債" },
+      { name: "元大證券", category: "其他負債" }
+    ];
+
+    let currentCategory = "ALL";
+
+    // 1. 初始化 LIFF
+    async function main() {
+      try {
+        await liff.init({ liffId: MY_LIFF_ID });
+      } catch (err) {
+        console.error("LIFF 初始化異常", err);
+      }
+      filterAndDisplay();
+    }
+
+    // 2. 渲染帳戶按鈕
+    function filterAndDisplay() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const listContainer = document.getElementById("accountList");
+      listContainer.innerHTML = "";
+
+      const filtered = allAccounts.filter(item => {
+        const matchesQuery = item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query);
+        const matchesCat = (currentCategory === "ALL") || item.category.includes(currentCategory);
+        return matchesQuery && matchesCat;
+      });
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">找不到符合的帳戶</div>`;
+        return;
+      }
+
+      filtered.forEach(acc => {
+        const card = document.createElement("button");
+        card.className = "w-full text-left px-4 py-3 bg-white hover:bg-emerald-50 active:bg-emerald-100 border border-slate-200 rounded-xl shadow-sm transition flex justify-between items-center group";
+        card.innerHTML = `
+          <div>
+            <div class="font-medium text-slate-800 group-hover:text-emerald-700 text-sm">${acc.name}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${acc.category}</div>
+          </div>
+          <span class="text-slate-300 group-hover:text-emerald-500 text-sm">➔</span>
+        `;
+        card.onclick = () => selectAccount(acc.name);
+        listContainer.appendChild(card);
+      });
+    }
+
+    // 3. 點選後直接幫使用者在聊天室發送文字，並秒關視窗！
+    async function selectAccount(accountName) {
+      try {
+        if (liff.isLoggedIn()) {
+          // 直接以使用者身分送出訊息至聊天室
+          await liff.sendMessages([{
+            type: "text",
+            text: accountName
+          }]);
+        }
+      } catch (e) {
+        console.error("發送訊息失敗", e);
+      } finally {
+        // 原生 LIFF 支援無阻礙自動關閉！
+        liff.closeWindow();
+      }
+    }
+
+    // 搜尋與標籤監聽
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      document.getElementById("clearBtn").classList.toggle("hidden", !e.target.value);
+      filterAndDisplay();
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      const input = document.getElementById("searchInput");
+      input.value = "";
+      document.getElementById("clearBtn").classList.add("hidden");
+      filterAndDisplay();
+    });
+
+    document.querySelectorAll(".chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".chip").forEach(b => {
+          b.className = "chip px-3 py-1 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap";
+        });
+        btn.className = "chip active px-3 py-1 rounded-full text-xs font-medium bg-emerald-600 text-white whitespace-nowrap";
+        currentCategory = btn.getAttribute("data-cat");
+        filterAndDisplay();
+      });
+    });
+
+    window.onload = main;
+  </script>
+</body>
+</html>
